@@ -1,46 +1,46 @@
-'use strict';
+"use strict";
 
-import React, { PureComponent } from 'react';
-
+import PropTypes from "prop-types";
+import React, { PureComponent } from "react";
 import {
-  findNodeHandle,
-  requireNativeComponent,
   Animated,
   DeviceEventEmitter,
   Easing,
-  StyleSheet,
+  findNodeHandle,
   Platform,
+  requireNativeComponent,
+  StyleSheet,
   UIManager,
   ViewPropTypes,
   WebView
-} from 'react-native';
-
-import PropTypes from 'prop-types';
-
+} from "react-native";
 import {
-  isEqual,
-  setState,
-  isSizeChanged,
-  handleSizeUpdated,
-  getWidth,
-  getScript,
   domMutationObserveScript,
   getCurrentSize,
-  getRenderSize
-} from './common.js';
+  getRenderSize,
+  getScript,
+  getWidth,
+  handleSizeUpdated,
+  isEqual,
+  isSizeChanged,
+  setState
+} from "./common.js";
+import momoize from "./momoize";
 
-const RCTAutoHeightWebView = requireNativeComponent('RCTAutoHeightWebView', AutoHeightWebView, {
-  nativeOnly: {
+const RCTAutoHeightWebView = requireNativeComponent(
+  "RCTAutoHeightWebView",
+  AutoHeightWebView,
+  {
     nativeOnly: {
-      onLoadingStart: true,
-      onLoadingError: true,
-      onLoadingFinish: true,
-      messagingEnabled: PropTypes.bool
+      nativeOnly: {
+        onLoadingStart: true,
+        onLoadingError: true,
+        onLoadingFinish: true,
+        messagingEnabled: PropTypes.bool
+      }
     }
   }
-});
-
-import momoize from './momoize';
+);
 
 const getUpdatedState = momoize(setState, isEqual);
 
@@ -82,7 +82,7 @@ export default class AutoHeightWebView extends PureComponent {
   };
 
   static defaultProps = {
-    baseUrl: 'file:///android_asset/web/',
+    baseUrl: "file:///android_asset/web/",
     scalesPageToFit: true,
     enableAnimation: true,
     animationDuration: 255,
@@ -93,7 +93,11 @@ export default class AutoHeightWebView extends PureComponent {
   constructor(props) {
     super(props);
     const { baseUrl, enableAnimation, style, source, heightOffset } = props;
-    isBelowKitKat && DeviceEventEmitter.addListener('webViewBridgeMessage', this.listenWebViewBridgeMessage);
+    isBelowKitKat &&
+      DeviceEventEmitter.addListener(
+        "webViewBridgeMessage",
+        this.listenWebViewBridgeMessage
+      );
     this.finishInterval = true;
     const initWidth = getWidth(style);
     const initHeight = style ? (style.height ? style.height : 0) : 0;
@@ -107,7 +111,9 @@ export default class AutoHeightWebView extends PureComponent {
     };
     if (enableAnimation) {
       Object.assign(state, {
-        heightValue: new Animated.Value(initHeight ? initHeight + heightOffset : 0),
+        heightValue: new Animated.Value(
+          initHeight ? initHeight + heightOffset : 0
+        ),
         widthValue: new Animated.Value(initWidth)
       });
     }
@@ -119,12 +125,21 @@ export default class AutoHeightWebView extends PureComponent {
   }
 
   static getDerivedStateFromProps(props, state) {
-    const { height: oldHeight, width: oldWidth, source: prevSource, script: prevScript } = state;
+    const {
+      height: oldHeight,
+      width: oldWidth,
+      source: prevSource,
+      script: prevScript
+    } = state;
     const { style } = props;
     const { source, script } = getUpdatedState(props, getBaseScript);
     const height = style ? style.height : null;
     const width = style ? style.width : null;
-    if (source.html !== prevSource.html || source.uri !== prevSource.uri || script !== prevScript) {
+    if (
+      source.html !== prevSource.html ||
+      source.uri !== prevSource.uri ||
+      script !== prevScript
+    ) {
       return {
         source,
         script,
@@ -142,13 +157,26 @@ export default class AutoHeightWebView extends PureComponent {
   }
 
   componentDidUpdate() {
-    const { height, width, isSizeChanged, isSizeMayChange, heightValue, widthValue } = this.state;
+    const {
+      height,
+      width,
+      isSizeChanged,
+      isSizeMayChange,
+      heightValue,
+      widthValue
+    } = this.state;
     if (isSizeMayChange) {
       this.startInterval();
       this.setState({ isSizeMayChange: false });
     }
     if (isSizeChanged) {
-      const { enableAnimation, animationDuration, animationEasing, onSizeUpdated, heightOffset } = this.props;
+      const {
+        enableAnimation,
+        animationDuration,
+        animationEasing,
+        onSizeUpdated,
+        heightOffset
+      } = this.props;
       if (enableAnimation) {
         Animated.parallel([
           Animated.timing(heightValue, {
@@ -173,7 +201,11 @@ export default class AutoHeightWebView extends PureComponent {
 
   componentWillUnmount() {
     this.stopInterval();
-    isBelowKitKat && DeviceEventEmitter.removeListener('webViewBridgeMessage', this.listenWebViewBridgeMessage);
+    isBelowKitKat &&
+      DeviceEventEmitter.removeListener(
+        "webViewBridgeMessage",
+        this.listenWebViewBridgeMessage
+      );
   }
 
   // below kitkat
@@ -204,7 +236,9 @@ export default class AutoHeightWebView extends PureComponent {
     this.setState({
       interval: setInterval(() => {
         if (!this.finishInterval) {
-          isBelowKitKat ? this.sendToWebView('getBodyHeight') : this.postMessage('getBodyHeight');
+          isBelowKitKat
+            ? this.sendToWebView("getBodyHeight")
+            : this.postMessage("getBodyHeight");
         }
       }, 205)
     });
@@ -220,10 +254,16 @@ export default class AutoHeightWebView extends PureComponent {
       return;
     }
     let data = {};
+    const { onMessage } = this.props;
+
     // Sometimes the message is invalid JSON, so we ignore that case
     try {
-      data = JSON.parse(isBelowKitKat ? e.nativeEvent.message : e.nativeEvent.data);
+      data = JSON.parse(
+        isBelowKitKat ? e.nativeEvent.message : e.nativeEvent.data
+      );
     } catch (error) {
+      onMessage && onMessage(e);
+
       console.error(error);
       return;
     }
@@ -237,7 +277,6 @@ export default class AutoHeightWebView extends PureComponent {
         width
       });
     }
-    const { onMessage } = this.props;
     onMessage && onMessage(e);
   };
 
@@ -251,7 +290,7 @@ export default class AutoHeightWebView extends PureComponent {
     const { onError, onLoadEnd } = this.props;
     onError && onError(event);
     onLoadEnd && onLoadEnd(event);
-    console.warn('Encountered an error loading page', event.nativeEvent);
+    console.warn("Encountered an error loading page", event.nativeEvent);
   };
 
   onLoadingFinish = event => {
@@ -272,13 +311,33 @@ export default class AutoHeightWebView extends PureComponent {
   getWebView = webView => (this.webView = webView);
 
   render() {
-    const { height, width, script, source, heightValue, widthValue } = this.state;
-    const { scalesPageToFit, style, scrollEnabled, heightOffset, enableAnimation } = this.props;
+    const {
+      height,
+      width,
+      script,
+      source,
+      heightValue,
+      widthValue
+    } = this.state;
+    const {
+      scalesPageToFit,
+      style,
+      scrollEnabled,
+      heightOffset,
+      enableAnimation
+    } = this.props;
     return (
       <Animated.View
         style={[
           styles.container,
-          getRenderSize(enableAnimation, height, width, heightOffset, heightValue, widthValue),
+          getRenderSize(
+            enableAnimation,
+            height,
+            width,
+            heightOffset,
+            heightValue,
+            widthValue
+          ),
           style
         ]}
       >
@@ -286,7 +345,7 @@ export default class AutoHeightWebView extends PureComponent {
           onLoadingStart={this.onLoadingStart}
           onLoadingFinish={this.onLoadingFinish}
           onLoadingError={this.onLoadingError}
-          originWhitelist={['.*']}
+          originWhitelist={[".*"]}
           ref={this.getWebView}
           style={styles.webView}
           javaScriptEnabled={true}
@@ -308,11 +367,11 @@ const isBelowKitKat = Platform.Version < 19;
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'transparent'
+    backgroundColor: "transparent"
   },
   webView: {
     flex: 1,
-    backgroundColor: 'transparent'
+    backgroundColor: "transparent"
   }
 });
 
